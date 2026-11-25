@@ -15,7 +15,7 @@
 </header>
 <main>
   <section class="introduction">
-    <div><h1>灰阶试图均匀性复查</h1><p>从显示面板的灰阶试图原照，检查区域亮度和相对选定参考点的差。</p></div>
+    <div><h1>灰阶试图均匀性复查</h1><p>从显示面板的灰阶试图原照，检查区域亮度和相对当地参考点的差；参考点取同一原照中已知正常的位置。</p></div>
     <div class="top-actions">
       <button id="practice" class="primary" type="button">打开练习面板</button>
       <button id="open-import" type="button">导入原片</button>
@@ -30,7 +30,7 @@
   <section id="empty" class="empty">
     <div class="display-icon" aria-hidden="true"><i></i></div>
     <h2>选择一张面板试图</h2>
-    <p>将测量框放在屏幕有效画面内，从灰阶试图选择参考像素和截线。</p>
+    <p>将测量框放在屏幕有效画面内，在原照点取三个以上的已知正常参考点，再选择截线。</p>
   </section>
   <section id="workspace" class="workspace" hidden>
     <div class="left">
@@ -79,11 +79,15 @@
           <label>上界 Y<input data-setting="top" type="number" step="1" min="0" required></label>
           <label>下界 Y<input data-setting="bottom" type="number" step="1" min="0" required></label>
         </div></fieldset>
-        <fieldset><legend>参考点与偏差</legend><div class="form-grid">
-          <label>参考点 X<input data-setting="ref_x" type="number" step="1" min="0" required></label>
-          <label>参考点 Y<input data-setting="ref_y" type="number" step="1" min="0" required></label>
+        <fieldset><legend>参考点与偏差</legend>
+          <div id="reference-points" class="reference-points"></div>
+          <div class="reference-tools">
+            <button id="add-reference" type="button">添加参考点</button>
+            <span>也可在“取参考点”模式下点原照</span>
+          </div>
           <label>偏差限值<input data-setting="limit" type="number" step="any" min="0.1" max="255" required></label>
-        </div><p id="reference-info"></p></fieldset>
+          <p id="reference-info"></p>
+        </fieldset>
         <button id="save" class="primary" type="submit">保存并测量</button>
       </form>
       <section class="panel outputs">

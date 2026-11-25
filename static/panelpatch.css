@@ -88,4 +88,13 @@ dialog .top-actions { justify-content: end; }
 }
 
 #reference-info { margin-top: 8px; font-size: 12px; color: #9bc8d0; }
+.reference-points { display: grid; gap: 5px; margin-bottom: 7px; }
+.reference-points p { color: var(--muted); font-size: 12px; }
+.reference-point { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+.reference-point span { flex: 1; min-width: 0; }
+.reference-point.unusable { color: #d1a394; }
+.reference-point button { min-height: 24px; padding: 2px 7px; font-size: 11px; }
+.reference-tools { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; }
+.reference-tools button { min-height: 28px; padding: 3px 8px; font-size: 12px; }
+.reference-tools span { color: var(--muted); font-size: 11px; }
 .primary:hover { color: #0e2230; }
