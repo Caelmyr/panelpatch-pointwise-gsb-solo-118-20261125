@@ -7,9 +7,9 @@ from pathlib import Path
 from flask import Blueprint, jsonify, render_template, request, send_file, url_for
 
 from image_lab import create_app as preparation_app
-from image_lab.validation import Invalid, integer, object_value
+from image_lab.validation import Invalid, identifier, integer, object_value
 
-from . import exports, patch
+from . import exports, pairing, patch
 from .store import Cards
 
 
@@ -74,6 +74,21 @@ def create_app(directory=None):
         x = integer(request.args.get("x"), "X", 0, card["width"] - 1)
         y = integer(request.args.get("y"), "Y", 0, card["height"] - 1)
         return jsonify(patch.point(patch.pixels(cards.photo(key)), x, y, card["settings"]))
+
+    @api.get("/cards/<key>/paired")
+    def paired(key):
+        primary = cards.read(key, request.args.get("revision"))
+        if not request.args.get("other"):
+            raise Invalid("请选择另一张试图卡")
+        other_key = identifier(request.args.get("other"))
+        if other_key == primary["id"]:
+            raise Invalid("请另选一张试图卡配对")
+        other = cards.read(other_key, request.args.get("other_revision"))
+        max_dy = integer(request.args.get("max_dy"), "原 Y 差上限", 0, max(primary["height"], other["height"]) - 1)
+        first = patch.report(patch.pixels(cards.photo(primary["id"])), primary["settings"])
+        second = patch.report(patch.pixels(cards.photo(other["id"])), other["settings"])
+        return jsonify(revision=primary["revision"], other_revision=other["revision"],
+                       **pairing.compare(primary, first, other, second, max_dy))
 
     @api.get("/cards/<key>/export/profile.csv")
     def profile(key):

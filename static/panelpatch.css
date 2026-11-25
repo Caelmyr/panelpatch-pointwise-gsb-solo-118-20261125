@@ -89,3 +89,22 @@ dialog .top-actions { justify-content: end; }
 
 #reference-info { margin-top: 8px; font-size: 12px; color: #9bc8d0; }
 .primary:hover { color: #0e2230; }
+
+.pairing { border-top: 3px solid #6b9bb9; }
+.pair-form { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 0 15px 12px; }
+.pair-form label { display: grid; gap: 4px; color: var(--muted); font-size: 12px; }
+.pair-form select, .pair-form input { width: 100%; min-height: 33px; padding: 5px 7px; }
+.pair-actions { display: flex; gap: 8px; margin: 0 15px 12px; }
+.pair-actions button { flex: 1; font-size: 12px; }
+.pair-summary, .pair-warning, .pair-unpaired { margin: 0 15px 10px; font-size: 12px; color: var(--muted); }
+.pair-warning { color: #e2b57c; }
+.pair-list { margin: 0 15px 12px; padding: 0; list-style: none; max-height: 244px; overflow: auto; display: grid; gap: 5px; }
+.pair-empty { color: var(--muted); font-size: 12px; }
+.pair-row { display: grid; gap: 3px; width: 100%; padding: 7px 9px; text-align: left; background: #20303d; }
+.pair-row b { font-size: 12px; color: #cfe7e1; font-weight: 600; }
+.pair-row span { font-size: 11px; color: var(--muted); }
+.pair-row[aria-pressed="true"] { border-color: var(--accent); background: #29424c; }
+.pair-row[aria-pressed="true"] b { color: var(--accent); }
+.pair-reading { margin: 0; padding: 0 15px 12px; color: var(--green); font-size: 12px; }
+#capture { cursor: crosshair; }
+.pair-leftover { color: #94a6b3; font: 11px/1.5 "Aptos", monospace; padding: 2px 2px 0; }

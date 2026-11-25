@@ -41,18 +41,20 @@
             <button id="probe-mode" data-mode="probe" aria-pressed="true" type="button">点读</button>
             <button id="mark-mode" data-mode="mark" aria-pressed="false" type="button">取截线</button>
             <button id="reference-mode" data-mode="reference" aria-pressed="false" type="button">取参考点</button>
+            <button id="pair-back" type="button" hidden>回到当前截线</button>
           </div>
         </div>
         <div class="camera"><canvas id="capture" aria-label="面板试图，可点击取样或输入原片像素坐标"></canvas></div>
         <div class="probe">
-          <b>原片点读</b>
+          <b id="probe-title">原片点读</b>
           <form id="probe-form"><label>X <input id="probe-x" type="number" min="0" step="1" required></label>
             <label>Y <input id="probe-y" type="number" min="0" step="1" required></label>
             <button type="submit">读取</button></form>
           <span id="probe-result">选择原片像素</span>
         </div>
+        <p id="pair-reading" class="pair-reading" hidden></p>
       </section>
-      <section class="panel profile">
+      <section id="profile-panel" class="panel profile">
         <div class="panel-head">
           <div><h2 id="chart-title">原列相对亮度</h2><span id="chart-caption">当前截线 · 原片 Y</span></div>
           <div class="modes" role="group" aria-label="当前图表">
@@ -65,9 +67,24 @@
     </div>
     <aside class="right">
       <section class="panel readout">
-        <div class="panel-head"><h2>当前列平均偏差</h2><span id="measurement-state"></span></div>
+        <div class="panel-head"><h2 id="readout-title">当前列平均偏差</h2><span id="measurement-state"></span></div>
         <div class="delta"><strong id="delta-value">—</strong><span id="delta-unit"></span></div>
         <p id="selected-level"></p>
+      </section>
+      <section class="panel pairing">
+        <div class="panel-head"><div><h2>两档灰阶配对</h2><span id="pair-state">未配对</span></div></div>
+        <div class="pair-form">
+          <label class="wide">另一张试图卡<select id="pair-card"><option value="">选择另一张卡</option></select></label>
+          <label class="wide">原 Y 差上限 · px<input id="pair-dy" type="number" step="1" min="0" value="6" required></label>
+        </div>
+        <div class="pair-actions">
+          <button id="pair-apply" class="primary" type="button">沿截线配对</button>
+          <button id="pair-clear" type="button">清除配对</button>
+        </div>
+        <p id="pair-summary" class="pair-summary">沿两张卡已保存的竖截线，各用自己的参考与限值。</p>
+        <p id="pair-warning" class="pair-warning" hidden></p>
+        <ol id="pair-list" class="pair-list" aria-label="配对点，按原片从上到下"></ol>
+        <p id="pair-unpaired" class="pair-unpaired" hidden></p>
       </section>
       <form id="calibration" class="panel settings">
         <div class="panel-head"><div><h2>测量框和参考</h2><span>坐标使用原片像素，X 向右，Y 向下</span></div></div>
@@ -86,7 +103,7 @@
         </div><p id="reference-info"></p></fieldset>
         <button id="save" class="primary" type="submit">保存并测量</button>
       </form>
-      <section class="panel outputs">
+      <section id="outputs-panel" class="panel outputs">
         <div class="panel-head"><h2>试图交接</h2></div>
         <div><a id="proof" download>PNG 校样 ↓</a><a id="csv" download>CSV 读数 ↓</a><a id="zip" download>ZIP 试图卡 ↓</a></div>
         <button id="prepare" type="button">将原片送入照片准备 ↗</button>
