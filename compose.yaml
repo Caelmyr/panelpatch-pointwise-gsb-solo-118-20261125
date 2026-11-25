@@ -1,0 +1,16 @@
+name: solo121-panelpatch
+services:
+  desk:
+    build:
+      context: .
+      args:
+        PANELPATCH_DEPS_IMAGE: ${PANELPATCH_DEPS_IMAGE:-python:3.11-slim}
+    image: ${PANELPATCH_IMAGE:-solo121-panelpatch:1.0}
+    network_mode: bridge
+    ports:
+      - "127.0.0.1:${PANELPATCH_PORT:-19921}:8000"
+    volumes:
+      - measurements:/var/lib/panelpatch
+    init: true
+volumes:
+  measurements:
