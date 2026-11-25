@@ -55,6 +55,12 @@ h2 { font-size: 15px; font-weight: 700; }
 .probe input { width: 57px; height: 25px; padding: 2px 3px; }
 #probe-result, #measurement-state { color: var(--green); }
 #chart { display: block; width: 100%; height: auto; min-height: 99px; }
+#chart.selectable-line { cursor: crosshair; }
+.line-review { display: grid; gap: 8px; padding: 10px 15px 13px; border-top: 1px solid var(--line); }
+.line-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.line-actions button { min-height: 30px; padding: 5px 10px; font-size: 12px; }
+#line-summary { color: #b9cad8; font-size: 12px; line-height: 1.45; }
+.line-rules { color: #8fa6b8; font-size: 11px; line-height: 1.45; }
 .legend i { display: inline-block; width: 15px; margin-right: 4px; border-top: 2px dashed var(--accent); vertical-align: middle; }
 .delta { display: flex; align-items: baseline; gap: 12px; margin: 0 15px 9px; border-bottom: 1px solid var(--line); padding-bottom: 10px; }
 .delta strong { font-size: 39px; font-variant-numeric: tabular-nums; color: var(--green); line-height: 1; }

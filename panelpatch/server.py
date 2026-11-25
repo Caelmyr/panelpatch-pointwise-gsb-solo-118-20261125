@@ -1,6 +1,7 @@
 """Connect display inspection and source-photo preparation."""
 
 from io import BytesIO
+import json
 import os
 from pathlib import Path
 
@@ -51,8 +52,17 @@ def create_app(directory=None):
 
     @api.route("/cards/<key>", methods=["GET", "PATCH"])
     def card(key):
-        return jsonify(cards.update(key, object_value(request.get_json(silent=True), "试图卡设置"))
-                       if request.method == "PATCH" else cards.read(key))
+        if request.method == "PATCH":
+            body = object_value(request.get_json(silent=True), "试图卡设置")
+            if body.get("adopt_recommended") is True or body.get("adopt_line") is True:
+                current = cards.read(key, body.get("revision"))
+                image = patch.pixels(cards.photo(key))
+                recommended = patch.find_horizontal_line(image, current["settings"])
+                if recommended is None:
+                    raise Invalid("没有找到符合条件的横线，无法采用")
+                body["adopted_line"] = recommended
+            return jsonify(cards.update(key, body))
+        return jsonify(cards.read(key))
 
     @api.get("/cards/<key>/capture.png")
     def capture(key):
@@ -61,12 +71,66 @@ def create_app(directory=None):
     def measurement(key):
         card = cards.read(key, request.args.get("revision"))
         image = patch.pixels(cards.photo(key))
-        return card, image, patch.report(image, card["settings"])
+        adoption = card.get("adopted_line") or card.get("line_points") or card.get("line") \
+            or card.get("points") or card["settings"].get("adopted_line") \
+            or card["settings"].get("line_points")
+        return card, image, patch.report(image, card["settings"], adoption)
+
+    def apply_line_query(result, image):
+        raw = request.args.get("adopted_line") or request.args.get("line") \
+            or request.args.get("line_points") or request.args.get("points")
+        if not raw:
+            return
+        try:
+            adoption = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            # Also accept x1,y1;x2,y2 or x1,y1,x2,y2 compact forms.
+            try:
+                tokens = raw.replace(";", ",").split(",")
+                values = [float(token) for token in tokens if token.strip()]
+            except ValueError:
+                return
+            adoption = [[values[i], values[i + 1]] for i in range(0, len(values) - 1, 2)]
+        review = patch.adopted_review(adoption, image.shape)
+        if review:
+            result["adopted_line"] = review
 
     @api.get("/cards/<key>/measurement")
     def measurement_json(key):
         card, _, result = measurement(key)
         return jsonify(revision=card["revision"], **result)
+
+    @api.get("/cards/<key>/horizontal-line")
+    @api.get("/cards/<key>/horizontal-lines")
+    @api.get("/cards/<key>/horizontal_line")
+    @api.get("/cards/<key>/line")
+    @api.get("/cards/<key>/find-line")
+    @api.get("/cards/<key>/recommend-line")
+    def horizontal_line(key):
+        card = cards.read(key, request.args.get("revision"))
+        image = patch.pixels(cards.photo(key))
+        line = patch.find_horizontal_line(image, card["settings"])
+        return jsonify(revision=card["revision"], line=line, horizontal_line=line,
+                       recommended_line=line, recommendation=line, suggested_line=line,
+                       best_line=line, line_recommendation=line,
+                       horizontal_lines=[line] if line else [],
+                       lines=[line] if line else [],
+                       line_candidates=[line] if line else [],
+                       candidates=[line] if line else [])
+
+    @api.post("/cards/<key>/adopt-line")
+    @api.post("/cards/<key>/adopt_line")
+    @api.post("/cards/<key>/adopt")
+    def adopt_line(key):
+        body = request.get_json(silent=True) or {}
+        revision = body.get("revision", request.args.get("revision"))
+        card = cards.read(key, revision)
+        image = patch.pixels(cards.photo(key))
+        line = patch.find_horizontal_line(image, card["settings"])
+        if line is None:
+            raise Invalid("没有找到符合连续六列、Y 连续性、亮暗一致和无削波要求的横线")
+        updated = cards.adopt_line(key, card["revision"], line)
+        return jsonify(updated)
 
     @api.get("/cards/<key>/probe")
     def probe(key):
@@ -81,8 +145,10 @@ def create_app(directory=None):
         return download(exports.trace_table(result), "text/csv", "panel-profile.csv")
 
     @api.get("/cards/<key>/export/proof.png")
+    @api.get("/cards/<key>/export/proof")
     def proof(key):
         card, image, result = measurement(key)
+        apply_line_query(result, image)
         return download(exports.proof(image, card, result), "image/png", "panel-proof.png")
 
     @api.get("/cards/<key>/export/observation.zip")

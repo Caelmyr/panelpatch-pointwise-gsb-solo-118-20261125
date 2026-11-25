@@ -61,6 +61,14 @@
           </div>
         </div>
         <canvas id="chart" width="850" height="166" aria-label="原列亮度及试图分布"></canvas>
+        <div class="line-review">
+          <div class="line-actions">
+            <button id="find-line" type="button" aria-label="核查横线：横着的亮线或暗线">核查横线</button>
+            <button id="adopt-line" class="primary" type="button" hidden>采用建议线</button>
+          </div>
+          <p id="line-summary" aria-live="polite">沿用已保存的框、参考点和偏差限值；真线至少跨六个连续原列，每列只能取一个原像素。</p>
+          <p class="line-rules">相邻列的 Y 最多差一，整条线最大和最小 Y 差不超过二；任一 RGB 通道为 0 或 255 的点、缺失列和另一种亮暗状态都不能连过去。</p>
+        </div>
       </section>
     </div>
     <aside class="right">

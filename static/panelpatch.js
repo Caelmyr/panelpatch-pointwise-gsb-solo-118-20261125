@@ -1,7 +1,7 @@
 "use strict";
 
 const get = (id) => document.getElementById(id);
-const state = {card: null, result: null, photo: null, probe: null, mode: "probe", chart: "profile", busy: false};
+const state = {card: null, result: null, photo: null, probe: null, mode: "probe", chart: "profile", busy: false, line: null, adoptedLine: null};
 const settings = [...document.querySelectorAll("[data-setting]")];
 
 async function api(path, options) {
@@ -37,6 +37,7 @@ async function action(work, target = "notice") {
   } finally {
     state.busy = false;
     document.querySelectorAll("button, select").forEach((node) => { node.disabled = false; });
+    if (get("line-summary")) renderLineReview();
   }
 }
 
@@ -76,6 +77,29 @@ function paintSource() {
   for (const row of result.profile) {
     ctx.fillStyle = colors[row.classification];
     ctx.fillRect(row.x - 1, row.y, 3, 1);
+  }
+  if (state.line && !state.adoptedLine) {
+    ctx.strokeStyle = "#ff7ae8";
+    ctx.lineWidth = 1.5;
+    for (const point of state.line.points || []) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 4.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  if (state.adoptedLine) {
+    for (const point of state.adoptedLine.points || []) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 5, 0, Math.PI * 2);
+      ctx.fillStyle = "#0b1018";
+      ctx.fill();
+    }
+    for (const point of state.adoptedLine.points || []) {
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, 3.25, 0, Math.PI * 2);
+      ctx.fillStyle = "#ff3df0";
+      ctx.fill();
+    }
   }
   if (probe) {
     ctx.strokeStyle = "#30393b";
@@ -127,6 +151,25 @@ function paintChart() {
   if (coverage) {
     plot(result.coverage.map((row) => [row.x, row.bright]), "#e4a86f");
     plot(result.coverage.map((row) => [row.x, row.dark]), "#a6a4f1");
+    const line = state.adoptedLine || state.line;
+    if (line) {
+      const adopted = Boolean(state.adoptedLine);
+      for (const point of line.points || []) {
+        ctx.beginPath();
+        ctx.arc(xAt(point.x), yAt(0), adopted ? 3.5 : 4.5, 0, Math.PI * 2);
+        if (adopted) {
+          ctx.fillStyle = "#ff3df0";
+          ctx.fill();
+          ctx.lineWidth = 1;
+          ctx.strokeStyle = "#0b1018";
+          ctx.stroke();
+        } else {
+          ctx.strokeStyle = "#ff7ae8";
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+    }
   } else {
     plot(result.profile.map((row) => [row.y, row.delta]), "#84dbc0");
     ctx.setLineDash([5, 4]);
@@ -134,6 +177,7 @@ function paintChart() {
     plot([[lo, -cfg.limit], [hi, -cfg.limit]], "#a6a4f1");
     ctx.setLineDash([]);
   }
+  canvas.classList.toggle("selectable-line", Boolean(coverage && state.adoptedLine));
 }
 
 function pointLabel(point) {
@@ -147,8 +191,39 @@ function signed(value) {
   return (value > 0 ? "+" : "") + value.toFixed(2);
 }
 
+function lineText(line) {
+  const kind = line.kind === "dark" ? "偏暗" : "偏亮";
+  const excess = line.average_excess ?? line.mean_excess ?? 0;
+  return kind + "线 · " + line.columns + " 个原列（X " + line.start_x + "–" + line.end_x +
+    "）· Y " + line.y_min + "–" + line.y_max + " · 平均超限 " + excess.toFixed(2);
+}
+
+function renderLineReview() {
+  const summary = get("line-summary");
+  const adopt = get("adopt-line");
+  if (state.adoptedLine) {
+    summary.textContent = "已采用：" + lineText(state.adoptedLine) +
+      "。请在“沿面板分布”图点选该线经过的一列。";
+    adopt.hidden = false;
+    adopt.disabled = true;
+    adopt.textContent = "已采用建议线";
+    return;
+  }
+  adopt.disabled = false;
+  if (state.line) {
+    summary.textContent = "建议一条复核：" + lineText(state.line) + "。可采用后点选分布列。";
+    adopt.hidden = false;
+    adopt.textContent = "采用建议线";
+  } else {
+    summary.textContent = "未找到合格横线：须至少跨六个连续原列，每列只能取一个原像素；相邻列的 Y 最多差一，整条线最大和最小 Y 差不超过二，且整条同为真偏亮或真偏暗。";
+    adopt.hidden = true;
+  }
+}
+
 function show() {
   const {card, result} = state;
+  state.line = result.recommended_line || result.horizontal_line || result.line || null;
+  state.adoptedLine = result.adopted_line || card.adopted_line || null;
   get("workspace").hidden = false;
   get("empty").hidden = true;
   get("origin").textContent = (card.synthetic ? "合成练习图" : "导入原片") + " · 修订 " + card.revision;
@@ -172,6 +247,7 @@ function show() {
   for (const [id, filename] of Object.entries({proof: "proof.png", csv: "profile.csv", zip: "observation.zip"})) {
     get(id).href = "/panelpatch" + route("/export/" + filename) + savedQuery();
   }
+  renderLineReview();
   paintSource();
   paintChart();
 }
@@ -193,6 +269,85 @@ async function probe(x, y) {
   get("probe-result").textContent = pointLabel(state.probe);
   paintSource();
 }
+
+async function findLine() {
+  const body = await api(route("/horizontal-line") + savedQuery());
+  state.line = body.recommended_line || body.horizontal_line || body.line || null;
+  renderLineReview();
+  paintSource();
+  paintChart();
+  notice(state.line ? "已找到建议复核的横线。" : "没有找到符合全部连续性和偏差条件的横线。");
+}
+
+function setChartMode(mode) {
+  state.chart = mode;
+  document.querySelectorAll("[data-chart]").forEach((item) =>
+    item.setAttribute("aria-pressed", String(item.dataset.chart === mode)));
+  if (state.card) paintChart();
+}
+
+async function adoptLine() {
+  const card = await api(route("/adopt-line"), {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({revision: state.card.revision}),
+  });
+  setChartMode("coverage");
+  await open(card);
+  setChartMode("coverage");
+  notice("已采用建议线，请在“沿面板分布”图点选该线经过的一列。");
+}
+
+function linePointFromChartEvent(event) {
+  if (!state.adoptedLine?.points?.length) return null;
+  const canvas = get("chart");
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return null;
+  const px = (event.clientX - rect.left) * canvas.width / rect.width;
+  const cfg = state.card.settings;
+  const lo = cfg.left;
+  const hi = cfg.right;
+  const plotWidth = canvas.width - 79;
+  const span = Math.max(1, hi - lo);
+  let nearest = null;
+  let nearestDistance = Infinity;
+  for (const point of state.adoptedLine.points) {
+    const xPix = 42 + plotWidth * (point.x - lo) / span;
+    const distance = Math.abs(xPix - px);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearest = point;
+    }
+  }
+  return nearestDistance <= 18 ? nearest : null;
+}
+
+async function selectLineColumn(point) {
+  let card = state.card;
+  if (Number(card.settings.focus) !== Number(point.x)) {
+    card = await api(route(""), {
+      method: "PATCH",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({revision: card.revision, settings: {focus: point.x}}),
+    });
+    await open(card);
+    setChartMode("coverage");
+  }
+  await probe(point.x, point.y);
+  notice("截线和原片点读已落到该列实际采用的像素 (" + point.x + ", " + point.y + ")。");
+}
+
+get("find-line").addEventListener("click", () => action(findLine).finally(renderLineReview));
+get("adopt-line").addEventListener("click", () => action(adoptLine).finally(renderLineReview));
+get("chart").addEventListener("click", (event) => {
+  if (!state.card || state.chart !== "coverage" || !state.adoptedLine) return;
+  const point = linePointFromChartEvent(event);
+  if (!point) {
+    notice("请点选采用线实点所在的原列。");
+    return;
+  }
+  action(() => selectLineColumn(point));
+});
 
 get("practice").addEventListener("click", () => action(async () => {
   await open(await api("/practice", {method: "POST"}));

@@ -67,9 +67,59 @@ class Cards:
         with self.lock:
             card = self.read(key, integer(value.get("revision"), "工作版本", 1))
             incoming = object_value(value.get("settings", {}), "试图设置")
-            config = patch.settings({**card["settings"], **incoming}, (card["width"], card["height"]))
+            old_settings = card["settings"]
+            if not card.get("adopted_line"):
+                legacy_adoption = old_settings.get("adopted_line") or old_settings.get("line_points")
+                if legacy_adoption:
+                    review = patch.adopted_review(
+                        legacy_adoption, (card["height"], card["width"], 3))
+                    if review:
+                        card["adopted_line"] = review
+            config = patch.settings({**old_settings, **incoming}, (card["width"], card["height"]))
+
+            adoption_present = False
+            adoption_value = None
+            for source in (value, incoming):
+                for name in ("adopted_line", "adopt_line", "line", "line_points", "points"):
+                    if name in source:
+                        adoption_present = True
+                        adoption_value = source[name]
+                        break
+                if adoption_present:
+                    break
+
+            # Geometry/reference/limit edits invalidate an adopted path.  A
+            # focus-only edit is the chart-to-transect interaction and keeps it.
+            rule_keys = ("left", "right", "top", "bottom", "ref_x", "ref_y", "limit")
+            rules_changed = any(old_settings.get(name) != config[name] for name in rule_keys)
+            if rules_changed or adoption_present:
+                card.pop("adopted_line", None)
+            if adoption_present and adoption_value not in (None, [], {}):
+                review = patch.adopted_review(adoption_value, (card["height"], card["width"], 3))
+                if review is None:
+                    raise Invalid("采用横线至少需要一个有效原片点")
+                card["adopted_line"] = review
+
+            adoption = card.get("adopted_line")
+            if adoption:
+                config["adopted_line"] = adoption
+                config["line_points"] = adoption["coordinates"]
+
             card.update(name=text(value.get("name", card["name"]), "试图卡名称", 80, False),
                         settings=config, revision=card["revision"] + 1)
+            self.commit(self.folder(key), card)
+            return card
+
+    def adopt_line(self, key, revision, line):
+        with self.lock:
+            card = self.read(key, revision)
+            review = patch.adopted_review(line, (card["height"], card["width"], 3))
+            if review is None:
+                raise Invalid("没有可采用的横线实点")
+            card["adopted_line"] = review
+            card["settings"]["adopted_line"] = review
+            card["settings"]["line_points"] = review["coordinates"]
+            card["revision"] += 1
             self.commit(self.folder(key), card)
             return card
 
